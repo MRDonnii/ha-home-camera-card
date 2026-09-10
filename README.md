@@ -8,6 +8,8 @@ kompakt bottom-sheet. Kortet har ingen ekstra overskrift, og kameraerne
 vises uden `picture-glance`-kortets mørke bundbjælke.
 Feedrammen håndhæves fysisk som 16:9 med klipning, så kameraer med et andet
 kildeformat ikke kan gøre deres panel højere end de øvrige.
+Kameraer kan desuden få individuel `fit_scale`; Fordør bruger som standard
+`1.34`, så et 4:3-kildebillede fylder hele 16:9-rammen uden sorte sidefelter.
 
 ```yaml
 type: custom:ha-home-camera-card
