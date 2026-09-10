@@ -12,6 +12,8 @@ Kameraer kan desuden få individuel `fit_scale`; Fordør bruger som standard
 `1.34`, så et 4:3-kildebillede fylder hele 16:9-rammen uden sorte sidefelter.
 Ved indlæsning og kameraskift vises kameraets seneste snapshot med det samme.
 Live-feedet startes bagved og fades først ind, når dets billedmedie er klar.
+Kort og editor genbruger deres eksisterende DOM ved uændrede konfigurationer og
+irrelevante HA-state-opdateringer, så hover, fokus og åbne felter ikke flimrer.
 
 ```yaml
 type: custom:ha-home-camera-card

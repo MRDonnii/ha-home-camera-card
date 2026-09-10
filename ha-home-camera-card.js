@@ -1,4 +1,4 @@
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 class HaHomeCameraCard extends HTMLElement {
   constructor() {
@@ -30,20 +30,34 @@ class HaHomeCameraCard extends HTMLElement {
   setConfig(config) {
     if (!Array.isArray(config?.groups) || !config.groups.length)
       throw new Error("Kamerakortet kræver mindst én kameragruppe");
-    this.config = {
+    const nextConfig = {
       title: "Kameraer lige nu",
       navigation_path: "/lovelace/cameras",
       aspect_ratio: "16:9",
       ...config,
     };
+    const signature = JSON.stringify(nextConfig);
+    if (signature === this._configSignature) {
+      this.config = nextConfig;
+      return;
+    }
+    this.config = nextConfig;
+    this._configSignature = signature;
     this._generation += 1;
     this._feedEntities = {};
+    this._hassSignature = "";
     this._renderShell();
     this._update();
   }
 
   set hass(hass) {
     this._hass = hass;
+    const signature = this._allWatched().map((id) => {
+      const state = hass?.states?.[id];
+      return `${id}:${state?.state || ""}:${state?.last_changed || ""}:${state?.attributes?.entity_picture || ""}`;
+    }).join("|");
+    if (signature === this._hassSignature) return;
+    this._hassSignature = signature;
     this._update();
   }
 
@@ -258,9 +272,22 @@ class HaHomeCameraCardEditor extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
   }
-  setConfig(config) { this.config = structuredClone(config || HaHomeCameraCard.getStubConfig()); this._render(); }
-  set hass(hass) { this._hass = hass; this._render(); }
-  _emit() { this.dispatchEvent(new CustomEvent("config-changed", { bubbles: true, composed: true, detail: { config: structuredClone(this.config) } })); }
+  setConfig(config) {
+    const nextConfig = structuredClone(config || HaHomeCameraCard.getStubConfig());
+    const signature = JSON.stringify(nextConfig);
+    this.config = nextConfig;
+    if (signature === this._configSignature && this.shadowRoot.hasChildNodes()) return;
+    this._configSignature = signature;
+    this._render();
+  }
+  set hass(hass) {
+    this._hass = hass;
+    this.shadowRoot.querySelectorAll("ha-entity-picker").forEach((picker) => { picker.hass = hass; });
+  }
+  _emit() {
+    this._configSignature = JSON.stringify(this.config);
+    this.dispatchEvent(new CustomEvent("config-changed", { bubbles: true, composed: true, detail: { config: structuredClone(this.config) } }));
+  }
   _escape(value) { return String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   _render() {
     if (!this.shadowRoot || !this.config) return;
