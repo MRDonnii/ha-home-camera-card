@@ -1,4 +1,4 @@
-const VERSION = "0.1.3";
+const VERSION = "0.1.4";
 
 class HaHomeCameraCard extends HTMLElement {
   constructor() {
@@ -116,8 +116,8 @@ class HaHomeCameraCard extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;--surface:var(--surface,var(--ha-card-background,var(--card-background-color,#1c1f26)));--text:var(--gray800,var(--primary-text-color,#f8fafc));--muted:var(--gray600,var(--secondary-text-color,#94a3b8));--edge:var(--dashboard-border-neutral,var(--divider-color,rgba(148,163,184,.2)));--accent:var(--dashboard-accent,var(--primary-color,#62b5ff));--ok:var(--dashboard-success,var(--success-color,#54d9aa));--warn:var(--dashboard-warning,var(--warning-color,#ffbd59));--danger:var(--dashboard-danger,var(--error-color,#ff667a));--animal:var(--dashboard-orange,var(--warning-color,#f97316));--object:var(--dashboard-purple,var(--accent-color,#a855f7));--motion:var(--dashboard-cyan,var(--info-color,#06b6d4));color:var(--text)}
       *{box-sizing:border-box}ha-card{overflow:hidden;border:1px solid var(--edge);border-left:4px solid var(--accent);border-radius:18px;background:var(--surface);box-shadow:var(--state-card-shadow,var(--ha-card-box-shadow,0 12px 30px rgba(0,0,0,.18)))}
-      header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px 12px}.heading{display:flex;align-items:center;gap:10px;min-width:0}.heading ha-icon{color:var(--accent)}h2{margin:0;font-size:17px}.sub{margin-top:2px;color:var(--muted);font-size:11px}.all{display:flex;align-items:center;gap:5px;border:1px solid var(--edge);border-radius:999px;padding:7px 10px;background:transparent;color:var(--text);font:inherit;font-size:11px;font-weight:750;cursor:pointer}.all ha-icon{--mdc-icon-size:16px;color:var(--accent)}
-      .grid{display:grid;grid-template-columns:repeat(var(--columns,3),minmax(0,1fr));gap:10px;padding:0 12px 13px}.panel{min-width:0;overflow:hidden;border:1px solid var(--edge);border-radius:15px;background:color-mix(in srgb,var(--surface) 93%,var(--text) 7%)}.panel.person{border-color:color-mix(in srgb,var(--danger) 72%,transparent)}.panel.animal{border-color:color-mix(in srgb,var(--animal) 72%,transparent)}.panel.vehicle{border-color:color-mix(in srgb,var(--accent) 72%,transparent)}.panel.object{border-color:color-mix(in srgb,var(--object) 72%,transparent)}.panel.motion{border-color:color-mix(in srgb,var(--motion) 72%,transparent)}
+      header{display:none}.heading{display:flex;align-items:center;gap:10px;min-width:0}.heading ha-icon{color:var(--accent)}h2{margin:0;font-size:17px}.sub{margin-top:2px;color:var(--muted);font-size:11px}.all{display:flex;align-items:center;gap:5px;border:1px solid var(--edge);border-radius:999px;padding:7px 10px;background:transparent;color:var(--text);font:inherit;font-size:11px;font-weight:750;cursor:pointer}.all ha-icon{--mdc-icon-size:16px;color:var(--accent)}
+      .grid{display:grid;grid-template-columns:repeat(var(--columns,3),minmax(0,1fr));gap:10px;padding:12px}.panel{min-width:0;overflow:hidden;border:1px solid var(--edge);border-radius:15px;background:color-mix(in srgb,var(--surface) 93%,var(--text) 7%)}.panel.person{border-color:color-mix(in srgb,var(--danger) 72%,transparent)}.panel.animal{border-color:color-mix(in srgb,var(--animal) 72%,transparent)}.panel.vehicle{border-color:color-mix(in srgb,var(--accent) 72%,transparent)}.panel.object{border-color:color-mix(in srgb,var(--object) 72%,transparent)}.panel.motion{border-color:color-mix(in srgb,var(--motion) 72%,transparent)}
       .bar{display:flex;align-items:center;gap:8px;padding:9px 10px}.name{min-width:0;flex:1}.name b,.name span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.name b{font-size:12px}.name span{color:var(--muted);font-size:9px}.activity{display:flex;align-items:center;gap:4px;color:var(--ok);font-size:10px;font-weight:800}.activity ha-icon{--mdc-icon-size:14px}.person .activity{color:var(--danger)}.animal .activity{color:var(--animal)}.vehicle .activity{color:var(--accent)}.object .activity{color:var(--object)}.motion .activity{color:var(--motion)}.choose{display:none;width:32px;height:32px;place-items:center;border:1px solid var(--edge);border-radius:50%;padding:0;background:transparent;color:var(--text);cursor:pointer}.choose ha-icon{--mdc-icon-size:17px;color:var(--accent)}
       .feed{position:relative;overflow:hidden;aspect-ratio:16/9;background:var(--camera-feed-background,var(--ha-card-background,#05080d))}.feed>*{width:100%;height:100%;display:block}.chips{display:flex;gap:5px;overflow-x:auto;padding:8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}.chip{flex:0 0 auto;border:1px solid var(--edge);border-radius:999px;padding:5px 8px;background:transparent;color:var(--muted);font:inherit;font-size:9px;font-weight:750;cursor:pointer}.chip.active{border-color:color-mix(in srgb,var(--accent) 68%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--text)}
       .missing{display:grid!important;place-items:center;color:var(--muted);font-size:12px}.missing ha-icon{--mdc-icon-size:30px;margin-bottom:5px}.missing div{text-align:center}
@@ -191,12 +191,10 @@ class HaHomeCameraCard extends HTMLElement {
       const helpers = await window.loadCardHelpers();
       if (generation !== this._generation || this._feedEntities[index] !== camera.entity) return;
       const card = await helpers.createCardElement({
-        type: "picture-glance",
+        type: "picture-elements",
         camera_image: camera.entity,
         camera_view: "live",
-        entities: [],
-        show_name: false,
-        show_state: false,
+        elements: [],
         aspect_ratio: this.config.aspect_ratio,
         fit_mode: "cover",
         tap_action: { action: "navigate", navigation_path: camera.navigation_path || this.config.navigation_path },

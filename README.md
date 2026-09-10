@@ -3,8 +3,9 @@
 Et responsivt Home Assistant-kort, der samler flere automatiske kameragrupper i
 ét `.js`-kort. Hver gruppe følger en valgsensor, kan overstyres lokalt og viser
 aktivitet for person, dyr, køretøj, hændelse eller bevægelse. Desktop bruger
-hurtige kamerachips; på mobil står grupperne på én vandret række uden en ekstra
-kortoverskrift, og kameravalg åbnes i et kompakt bottom-sheet.
+hurtige kamerachips; på mobil står grupperne på én vandret række, og kameravalg
+åbnes i et kompakt bottom-sheet. Kortet har ingen ekstra overskrift, og kameraerne
+vises uden `picture-glance`-kortets mørke bundbjælke.
 
 ```yaml
 type: custom:ha-home-camera-card
