@@ -6,6 +6,8 @@ aktivitet for person, dyr, køretøj, hændelse eller bevægelse. Desktop bruger
 På både pc og mobil står grupperne på én vandret række, og kameravalg åbnes i et
 kompakt bottom-sheet. Kortet har ingen ekstra overskrift, og kameraerne
 vises uden `picture-glance`-kortets mørke bundbjælke.
+Feedrammen håndhæves fysisk som 16:9 med klipning, så kameraer med et andet
+kildeformat ikke kan gøre deres panel højere end de øvrige.
 
 ```yaml
 type: custom:ha-home-camera-card
