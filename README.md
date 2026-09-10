@@ -4,8 +4,14 @@ Et responsivt Home Assistant-kort, der samler flere automatiske kameragrupper i
 ét `.js`-kort. Hver gruppe følger en valgsensor, kan overstyres lokalt og viser
 aktivitet for person, dyr, køretøj, hændelse eller bevægelse. Desktop bruger
 På både pc og mobil står grupperne på én vandret række, og kameravalg åbnes i et
-kompakt bottom-sheet. Kortet har ingen ekstra overskrift, og kameraerne
-vises uden `picture-glance`-kortets mørke bundbjælke.
+kompakt bottom-sheet. Titel-linjen med "Alle kameraer"-knappen er som
+standard skjult (`show_header: false`) og kan slås til i den visuelle editor
+eller via config. Kameraerne vises uden `picture-glance`-kortets mørke
+bundbjælke.
+
+Selve kamerabilledet (ikke kun titel-linjen) kan trykkes for at navigere et
+sted hen — sæt en global `navigation_path` for hele kortet, og/eller en
+individuel `navigation_path` pr. kamera, som har forrang når den er sat.
 Feedrammen håndhæves fysisk som 16:9 med klipning, så kameraer med et andet
 kildeformat ikke kan gøre deres panel højere end de øvrige.
 Kameraer kan desuden få individuel `fit_scale`; Fordør bruger som standard
@@ -19,6 +25,7 @@ irrelevante HA-state-opdateringer, så hover, fokus og åbne felter ikke flimrer
 type: custom:ha-home-camera-card
 title: Kameraer lige nu
 navigation_path: /teknik-overblik/overvagning
+show_header: false
 groups:
   - name: Forside
     selector_entity: sensor.active_front_camera
@@ -26,6 +33,7 @@ groups:
       - key: front_door
         name: Fordør
         entity: camera.front_door
+        navigation_path: /teknik-overblik/dore-og-vinduer
         detections:
           motion: binary_sensor.front_door_motion
 ```
