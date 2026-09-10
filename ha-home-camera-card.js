@@ -1,4 +1,4 @@
-const VERSION = "0.1.9";
+const VERSION = "0.2.0";
 
 class HaHomeCameraCard extends HTMLElement {
   constructor() {
@@ -119,7 +119,7 @@ class HaHomeCameraCard extends HTMLElement {
       header{display:none}.heading{display:flex;align-items:center;gap:10px;min-width:0}.heading ha-icon{color:var(--accent)}h2{margin:0;font-size:17px}.sub{margin-top:2px;color:var(--muted);font-size:11px}.all{display:flex;align-items:center;gap:5px;border:1px solid var(--edge);border-radius:999px;padding:7px 10px;background:transparent;color:var(--text);font:inherit;font-size:11px;font-weight:750;cursor:pointer}.all ha-icon{--mdc-icon-size:16px;color:var(--accent)}
       .grid{display:grid;grid-template-columns:repeat(var(--columns,3),minmax(0,1fr));gap:10px;padding:12px}.panel{min-width:0;overflow:hidden;border:0;border-radius:15px;background:color-mix(in srgb,var(--surface) 93%,var(--text) 7%)}
       .bar{display:flex;align-items:center;gap:5px;padding:6px}.name{min-width:0;flex:1}.name b,.name span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.name b{font-size:11px}.name span{display:none;color:var(--muted);font-size:9px}.activity{display:flex;align-items:center;gap:4px;color:var(--ok);font-size:10px;font-weight:800}.activity span{display:none}.activity ha-icon{--mdc-icon-size:14px}.person .activity{color:var(--danger)}.animal .activity{color:var(--animal)}.vehicle .activity{color:var(--accent)}.object .activity{color:var(--object)}.motion .activity{color:var(--motion)}.choose{display:grid;width:29px;height:29px;place-items:center;border:1px solid var(--edge);border-radius:50%;padding:0;background:transparent;color:var(--text);cursor:pointer}.choose ha-icon{--mdc-icon-size:16px;color:var(--accent)}
-      .feed{position:relative;min-width:0;min-height:0;overflow:hidden;aspect-ratio:16/9;contain:layout paint;background:var(--camera-feed-background,var(--ha-card-background,#05080d))}.feed>*{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;display:block;overflow:hidden}.chips{display:none}.chip{flex:0 0 auto;border:1px solid var(--edge);border-radius:999px;padding:5px 8px;background:transparent;color:var(--muted);font:inherit;font-size:9px;font-weight:750;cursor:pointer}.chip.active{border-color:color-mix(in srgb,var(--accent) 68%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--text)}
+      .feed{position:relative;min-width:0;min-height:0;overflow:hidden;aspect-ratio:16/9;contain:layout paint;background:var(--camera-feed-background,var(--ha-card-background,#05080d))}.feed>*{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;display:block;overflow:hidden}.snapshot{z-index:2;object-fit:cover;opacity:1;transition:opacity .28s ease;background:var(--camera-feed-background,var(--ha-card-background,#05080d))}.live-card{z-index:1;opacity:0;transition:opacity .28s ease}.feed.ready .snapshot{opacity:0;pointer-events:none}.feed.ready .live-card{opacity:1}.chips{display:none}.chip{flex:0 0 auto;border:1px solid var(--edge);border-radius:999px;padding:5px 8px;background:transparent;color:var(--muted);font:inherit;font-size:9px;font-weight:750;cursor:pointer}.chip.active{border-color:color-mix(in srgb,var(--accent) 68%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--text)}
       .missing{display:grid!important;place-items:center;color:var(--muted);font-size:12px}.missing ha-icon{--mdc-icon-size:30px;margin-bottom:5px}.missing div{text-align:center}
       dialog{width:min(92vw,420px);max-height:78vh;margin:auto auto 0;border:1px solid var(--edge);border-radius:20px 20px 0 0;padding:0;background:var(--surface);color:var(--text);box-shadow:0 -14px 45px rgba(0,0,0,.32)}dialog::backdrop{background:rgba(0,0,0,.48);backdrop-filter:blur(2px)}.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 10px;border-bottom:1px solid var(--edge)}.sheet-head b{font-size:15px}.close{display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:50%;background:color-mix(in srgb,var(--surface) 85%,var(--text) 15%);color:var(--text);cursor:pointer}.close ha-icon{--mdc-icon-size:19px}.choices{display:grid;gap:7px;padding:12px 12px calc(14px + env(safe-area-inset-bottom))}.choice{display:flex;align-items:center;gap:11px;width:100%;min-height:48px;border:1px solid var(--edge);border-radius:13px;padding:9px 12px;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer}.choice ha-icon{--mdc-icon-size:20px;color:var(--muted)}.choice span{flex:1;font-size:13px;font-weight:700}.choice.active{border-color:color-mix(in srgb,var(--accent) 70%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent)}.choice.active ha-icon,.choice .check{color:var(--accent)}
       @media(max-width:900px){.grid{grid-template-columns:repeat(var(--columns,3),minmax(0,1fr))}.feed{aspect-ratio:16/9}}
@@ -174,7 +174,7 @@ class HaHomeCameraCard extends HTMLElement {
 
   async _setFeed(index, camera) {
     if (this._feedEntities[index] === camera.entity) {
-      const card = this.shadowRoot.querySelector(`[data-feed="${index}"]`)?.firstElementChild;
+      const card = this.shadowRoot.querySelector(`[data-feed="${index}"] [data-live-card]`);
       if (card) card.hass = this._hass;
       return;
     }
@@ -187,6 +187,15 @@ class HaHomeCameraCard extends HTMLElement {
       feed.innerHTML = `<div class="missing"><div><ha-icon icon="mdi:camera-off-outline"></ha-icon><br>Kamera ikke fundet</div></div>`;
       return;
     }
+    feed.classList.remove("ready");
+    const snapshot = document.createElement("img");
+    snapshot.className = "snapshot";
+    snapshot.alt = camera.name || camera.key || "Kamera";
+    snapshot.decoding = "async";
+    const entityPicture = state.attributes?.entity_picture;
+    if (entityPicture) snapshot.src = this._hass.hassUrl(entityPicture);
+    else if (state.attributes?.access_token) snapshot.src = this._hass.hassUrl(`/api/camera_proxy/${camera.entity}?token=${state.attributes.access_token}`);
+    feed.replaceChildren(snapshot);
     try {
       const helpers = await window.loadCardHelpers();
       if (generation !== this._generation || this._feedEntities[index] !== camera.entity) return;
@@ -199,17 +208,38 @@ class HaHomeCameraCard extends HTMLElement {
         fit_mode: "cover",
         tap_action: { action: "navigate", navigation_path: camera.navigation_path || this.config.navigation_path },
       });
+      card.classList.add("live-card");
+      card.dataset.liveCard = "";
       const fitScale = Number(camera.fit_scale || (camera.key === "fordor" ? 1.34 : 1));
       if (Number.isFinite(fitScale) && fitScale > 0) {
         card.style.transform = `scale(${fitScale})`;
         card.style.transformOrigin = "center center";
       }
       card.hass = this._hass;
-      feed.replaceChildren(card);
+      feed.appendChild(card);
+      this._revealWhenReady(feed, card, generation, camera.entity);
     } catch (error) {
       feed.innerHTML = `<div class="missing"><div><ha-icon icon="mdi:alert-circle-outline"></ha-icon><br>Stream kunne ikke indlæses</div></div>`;
       console.error("HA Home Camera Card", error);
     }
+  }
+
+  _mediaReady(node) {
+    if (!node) return false;
+    if (node instanceof HTMLVideoElement && node.readyState >= 2) return true;
+    if (node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0) return true;
+    if (node.shadowRoot && this._mediaReady(node.shadowRoot)) return true;
+    return Array.from(node.children || []).some((child) => this._mediaReady(child));
+  }
+
+  _revealWhenReady(feed, card, generation, entity, attempt = 0) {
+    if (generation !== this._generation || this._feedEntities[feed.dataset.feed] !== entity || !card.isConnected) return;
+    if ((attempt >= 4 && this._mediaReady(card)) || attempt >= 80) {
+      feed.classList.add("ready");
+      setTimeout(() => feed.querySelector(".snapshot")?.remove(), 320);
+      return;
+    }
+    setTimeout(() => this._revealWhenReady(feed, card, generation, entity, attempt + 1), 100);
   }
 
   _navigate(path) {
