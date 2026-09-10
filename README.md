@@ -2,9 +2,9 @@
 
 Et responsivt Home Assistant-kort, der samler flere automatiske kameragrupper i
 ét `.js`-kort. Hver gruppe følger en valgsensor, kan overstyres lokalt og viser
-aktivitet for person, dyr, køretøj, hændelse eller bevægelse. Desktop bruger
-På både pc og mobil står grupperne på én vandret række, og kameravalg åbnes i et
-kompakt bottom-sheet. Titel-linjen med "Alle kameraer"-knappen er som
+aktivitet for person, dyr, køretøj, hændelse eller bevægelse. På både pc og
+mobil står grupperne på én vandret række, og kameravalg åbnes i en kompakt menu
+forankret ved den knap, der blev trykket på. Titel-linjen er som
 standard skjult (`show_header: false`) og kan slås til i den visuelle editor
 eller via config. Kameraerne vises uden `picture-glance`-kortets mørke
 bundbjælke.
@@ -20,11 +20,15 @@ Ved indlæsning og kameraskift vises kameraets seneste snapshot med det samme.
 Live-feedet startes bagved og fades først ind, når dets billedmedie er klar.
 Kort og editor genbruger deres eksisterende DOM ved uændrede konfigurationer og
 irrelevante HA-state-opdateringer, så hover, fokus og åbne felter ikke flimrer.
+Klik på et feed kan konfigureres som navigation, mere-info eller ingen handling.
+Standardnavigationen er `/teknik-overblik/overvagning`, og kameravælgeren åbner
+forankret direkte ved den knap, der blev trykket på.
 
 ```yaml
 type: custom:ha-home-camera-card
 title: Kameraer lige nu
 navigation_path: /teknik-overblik/overvagning
+click_action: navigate
 show_header: false
 groups:
   - name: Forside
