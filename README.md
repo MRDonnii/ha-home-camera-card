@@ -21,6 +21,8 @@ Live-feedet startes bagved og fades først ind, når dets billedmedie er klar.
 Kort og editor genbruger deres eksisterende DOM ved uændrede konfigurationer og
 irrelevante HA-state-opdateringer, så hover, fokus og åbne felter ikke flimrer.
 Klik på et feed kan konfigureres som navigation, mere-info eller ingen handling.
+På brede dashboardlayouts kan `fill_height: true` få et kamera-grid til at
+udfylde hele den tildelte kolonne med lige høje rækker.
 Standardnavigationen er `/teknik-overblik/overvagning`, og kameravælgeren åbner
 forankret direkte ved den knap, der blev trykket på.
 

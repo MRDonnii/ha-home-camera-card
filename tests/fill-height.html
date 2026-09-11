@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="module">
+  import "../ha-home-camera-card.js";
+  const groups = Array.from({ length: 9 }, (_, index) => ({
+    name: `Kamera ${index + 1}`,
+    cameras: [{ key: `cam_${index}`, name: `Kamera ${index + 1}`, entity: `camera.cam_${index}` }],
+  }));
+  const card = document.createElement("ha-home-camera-card");
+  card.setConfig({ groups, fill_height: true });
+  document.body.append(card);
+  const shell = card.shadowRoot.querySelector("ha-card");
+  card.hass = { states: { "sensor.unrelated": { state: "changed" } } };
+  document.title = JSON.stringify({
+    fillClass: card.classList.contains("fill-height"),
+    panels: card.shadowRoot.querySelectorAll(".panel").length,
+    columns: card.shadowRoot.querySelector(".grid")?.style.getPropertyValue("--columns"),
+    stableAfterIrrelevant: card.shadowRoot.querySelector("ha-card") === shell,
+    hasFillRules: card.shadowRoot.querySelector("style")?.textContent.includes(":host(.fill-height) .feed{flex:1;aspect-ratio:auto}"),
+  });
+</script>
