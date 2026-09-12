@@ -1,5 +1,12 @@
 # HA Home Camera Card
 
+## Neutral mobile preview
+
+![Neutral mobile preview of ha-home-camera-card](docs/preview.png)
+
+> Rendered at 390 px mobile width with fictional Home Assistant entities and values. No private dashboard, person, address, camera, or sensor data is included.
+
+
 Et responsivt Home Assistant-kort, der samler flere automatiske kameragrupper i
 ét `.js`-kort. Hver gruppe følger en valgsensor, kan overstyres lokalt og viser
 aktivitet for person, dyr, køretøj, hændelse eller bevægelse. På både pc og
