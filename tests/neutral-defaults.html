@@ -24,13 +24,36 @@
     ],
   };
   card.hass = { states: { "input_select.preferred_camera": { state: "camera_2" } } };
+  const editor = document.createElement("ha-home-camera-card-editor");
+  editor.setConfig(stub);
+  editor._entityRegistry = [
+    { entity_id: "camera.example_1", device_id: "device-1" },
+    { entity_id: "binary_sensor.example_1_person_detected", device_id: "device-1", original_name: "Person detected", disabled_by: null },
+    { entity_id: "binary_sensor.example_1_vehicle_detected", device_id: "device-1", original_name: "Vehicle detected", disabled_by: null },
+    { entity_id: "binary_sensor.other_animal_detected", device_id: "device-2", original_name: "Animal detected", disabled_by: null },
+  ];
+  editor._hass = { states: {
+    "binary_sensor.example_1_person_detected": { state: "off" },
+    "binary_sensor.example_1_vehicle_detected": { state: "off" },
+    "binary_sensor.other_animal_detected": { state: "off" },
+  } };
+  const discovered = editor._discoverDetections({ entity: "camera.example_1", detections: {} }).map((item) => item.key);
+  card._hass = { states: {
+    "input_select.preferred_camera": { state: "camera_2" },
+    "binary_sensor.camera_special_person_detected": { state: "on" },
+    "binary_sensor.camera_special_vehicle_detected": { state: "on" },
+  } };
+  const filteredActivity = card._activity({ key: "camera_special", enabled_detections: ["vehicle"] });
 
   document.title = JSON.stringify({
-    neutralStub: stub.groups[0].name === "Kameragruppe" && stub.groups[0].cameras[0].key === "camera_1",
+    neutralStub: stub.groups[0].name === "Kamerafelt 1" && stub.cameras[0].key === "camera_1",
+    catalogSchema: stub.groups[0].camera_keys[0] === "camera_1" && stub.groups[0].fallback_camera === "camera_1",
     emptyNavigation: stub.navigation_path === "",
-    emptyEntity: stub.groups[0].cameras[0].entity === "",
+    emptyEntity: stub.cameras[0].entity === "",
     genericDefaults: card.config.groups[0].cameras[0].fit_scale === undefined,
     configuredFallback: card._selected(fallbackGroup, 0).key === "camera_2",
+    sameDeviceDiscovery: discovered.join(",") === "person,vehicle",
+    enabledDetectionFilter: filteredActivity.text === "Køretøj",
     solidPickerSurface: card.shadowRoot.querySelector("style").textContent.includes("linear-gradient(var(--popup-solid),var(--popup-solid)),#1c1f26"),
     stableAfterIrrelevant: card.shadowRoot.querySelector("ha-card") === shell,
   });

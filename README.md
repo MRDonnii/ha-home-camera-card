@@ -7,8 +7,8 @@
 > Rendered with fictional Home Assistant entities and values. No private dashboard, person, address, camera, or sensor data is included.
 
 
-Et responsivt Home Assistant-kort, der samler flere automatiske kameragrupper i
-ét `.js`-kort. Hver gruppe følger en valgsensor, kan overstyres lokalt og viser
+Et responsivt Home Assistant-kort med ét fælles kamerakatalog og flere
+kamerafelter. Hvert felt følger en valgsensor, kan overstyres lokalt og viser
 aktivitet for person, dyr, køretøj, hændelse eller bevægelse. På både pc og
 mobil står grupperne på én vandret række, og kameravalg åbnes i en kompakt menu
 forankret ved den knap, der blev trykket på. Titel-linjen er som
@@ -38,6 +38,13 @@ gruppen i stedet få `fallback_select_entity`, som skal være en `input_select`
 med kameranøglerne som muligheder. Alle kameraer, entiteter, navne og
 navigationsstier kommer alene fra brugerens egen konfiguration.
 
+I den visuelle editor oprettes kameraerne først i det fælles katalog. Kortet
+slår kameraet op i Home Assistants entity-register og finder automatisk aktive
+smart-detektioner på samme enhed. Hver fundet type kan krydses til eller fra.
+Derefter vælges de tilladte kameraer, selector og fallback separat for hvert
+kamerafelt. Ældre konfigurationer med en kameraliste inde i hver gruppe
+migreres automatisk af editoren.
+
 ```yaml
 type: custom:ha-home-camera-card
 title: Kameraer
@@ -45,24 +52,32 @@ navigation_path: /lovelace/cameras
 click_action: navigate
 show_header: false
 groups:
-  - name: Udendørs
+  - name: Kamerafelt 1
     selector_entity: input_select.active_camera
-    cameras:
-      - key: camera_1
-        name: Kamera 1
-        entity: camera.example_camera
-        navigation_path: /lovelace/cameras
-        detections:
-          motion: binary_sensor.example_camera_motion
+    camera_keys: [camera_1]
+    fallback_camera: camera_1
+cameras:
+  - key: camera_1
+    name: Kamera 1
+    entity: camera.example_camera
+    navigation_path: /lovelace/cameras
+    detections:
+      person: binary_sensor.example_camera_person_detected
+      motion: binary_sensor.example_camera_motion
+    enabled_detections: [person, motion]
 ```
 
-Hvis `detections` udelades, finder kortet automatisk standardnavne ud fra
-kameranøglen, fx `binary_sensor.camera_1_person_detected`. Alle egne
+Editorens opdagelse bruger samme Home Assistant-`device_id` og understøtter
+binære sensorer samt Protect-event entities. Event-advarsler holdes som
+standard synlige i 30 sekunder; det kan ændres med
+`detection_event_hold_seconds`. Hvis `detections` udelades, kan runtime stadig
+finde almindelige standardnavne ud fra kameranøglen, fx
+`binary_sensor.camera_1_person_detected`. Alle egne
 tema-variable har fallback til Home Assistants standardvariabler og en normal
 literal farve.
 
-Kortet har en visuel editor til titel, navigationssti, grupper, valgsensorer,
-kameraer og valgfrie bevægelsessensorer.
+Kortet har en visuel editor til titel, navigationssti, fælles kamerakatalog,
+automatisk fundne smart-detektioner, kamerafelter, valgsensorer og fallback.
 
 ## Installation
 
