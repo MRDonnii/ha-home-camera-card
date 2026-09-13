@@ -1,4 +1,4 @@
-const VERSION = "0.8.1";
+const VERSION = "0.8.2";
 
 const DETECTION_TYPES = [
   { key: "smoke", label: "Røgalarm", icon: "mdi:smoke-detector-alert", cls: "danger", patterns: ["smoke alarm"] },
@@ -160,7 +160,10 @@ class HaHomeCameraCard extends HTMLElement {
   }
 
   _autoKey(group) {
-    return `ha-home-camera-card-auto::${group.selector_entity || group.name || ""}`;
+    // v2 deliberately discards v0.8.1's migration that enabled every catalog
+    // camera in every view. The configured per-view list is authoritative on
+    // first load again; later dropdown changes remain local to this display.
+    return `ha-home-camera-card-auto-v2::${group.selector_entity || group.name || ""}`;
   }
 
   _getAutoCameraKeys(group) {
@@ -349,6 +352,7 @@ class HaHomeCameraCard extends HTMLElement {
       const keys = this._getAutoCameraKeys(group);
       if (keys.has(button.dataset.autoPin)) keys.delete(button.dataset.autoPin); else keys.add(button.dataset.autoPin);
       this._setAutoCameraKeys(group, keys);
+      this._manual[index] = "__auto__";
       dialog.close(); this._openPicker(index, anchor); this._update();
     }));
     choices.querySelectorAll("[data-pin]").forEach((button) => button.addEventListener("click", (event) => {
