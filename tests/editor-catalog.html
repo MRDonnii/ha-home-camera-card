@@ -12,11 +12,13 @@
     { entity_id: "camera.example_1", device_id: "device-1" },
     { entity_id: "binary_sensor.example_1_person_detected", device_id: "device-1", original_name: "Person detected", disabled_by: null },
     { entity_id: "binary_sensor.example_1_vehicle_detected", device_id: "device-1", original_name: "Vehicle detected", disabled_by: null },
+    { entity_id: "event.example_1_smart_detection", device_id: "device-1", original_name: "Smart detection", disabled_by: null },
   ] };
   editor.hass = {
     states: {
       "binary_sensor.example_1_person_detected": { state: "off" },
       "binary_sensor.example_1_vehicle_detected": { state: "off" },
+      "event.example_1_smart_detection": { state: "2026-09-13T14:00:00Z", attributes: { event_types: ["person", "animal", "license_plate", "package"], event_type: "person", smart_detect_types: ["person"] } },
     },
     connection,
   };
@@ -26,11 +28,14 @@
     editor.hass = { states: {}, connection };
     document.title = JSON.stringify({
       catalogCameras: root.querySelectorAll("[data-remove-catalog-camera]").length,
-      views: root.querySelectorAll("[data-remove-group]").length,
+      views: root.querySelectorAll(".group").length,
+      viewCount: root.querySelector("[data-view-count]")?.value,
       discoveredDetections: root.querySelectorAll("[data-detection-toggle]").length,
       allowedChoices: root.querySelectorAll("[data-camera-allow]").length,
       fallbackChoices: root.querySelectorAll("[data-group-select='fallback_camera'] option").length,
       stableAfterHassUpdate: root.querySelector(".catalog") === catalog,
+      eventOptions: ["animal", "license_plate", "package"].every((key) => root.querySelector(`[data-detection-toggle="${key}"]`)),
+      savedEventBinding: editor.config.cameras[0].detections.license_plate.event_type === "license_plate",
     });
   }, 50);
 </script>

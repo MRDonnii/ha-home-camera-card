@@ -44,6 +44,16 @@
     "binary_sensor.camera_special_vehicle_detected": { state: "on" },
   } };
   const filteredActivity = card._activity({ key: "camera_special", enabled_detections: ["vehicle"] });
+  const autoGroup = { name: "Auto", mode: "auto", camera_keys: ["camera_1", "camera_2"], fallback_camera: "camera_1" };
+  card.config.cameras = [
+    { key: "camera_1", entity: "camera.example_1", detections: { person: "binary_sensor.example_1_person_detected" }, enabled_detections: ["person"] },
+    { key: "camera_2", entity: "camera.example_2", detections: { person: { entity_id: "event.example_2_smart_detection", event_type: "person" } }, enabled_detections: ["person"] },
+  ];
+  card._hass.states["event.example_2_smart_detection"] = { state: new Date().toISOString(), last_changed: new Date().toISOString(), attributes: { event_type: "person", smart_detect_types: ["person"] } };
+  const automaticDetectionCamera = card._selected(autoGroup, 0)?.key;
+  autoGroup.mode = "static";
+  autoGroup.static_camera = "camera_1";
+  const staticCamera = card._selected(autoGroup, 0)?.key;
 
   document.title = JSON.stringify({
     neutralStub: stub.groups[0].name === "Kamerafelt 1" && stub.cameras[0].key === "camera_1",
@@ -54,6 +64,8 @@
     configuredFallback: card._selected(fallbackGroup, 0).key === "camera_2",
     sameDeviceDiscovery: discovered.join(",") === "person,vehicle",
     enabledDetectionFilter: filteredActivity.text === "Køretøj",
+    automaticDetectionSwitch: automaticDetectionCamera === "camera_2",
+    configuredStaticMode: staticCamera === "camera_1",
     solidPickerSurface: card.shadowRoot.querySelector("style").textContent.includes("linear-gradient(var(--popup-solid),var(--popup-solid)),#1c1f26"),
     stableAfterIrrelevant: card.shadowRoot.querySelector("ha-card") === shell,
   });

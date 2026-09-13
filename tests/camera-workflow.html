@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>pending</title>
+<script type="module">
+  import "../ha-home-camera-card.js";
+  const cameras = Array.from({ length: 12 }, (_, index) => ({
+    key: `camera_${index + 1}`,
+    name: `Kamera ${index + 1}`,
+    entity: `camera.example_${index + 1}`,
+    detections: { person: `binary_sensor.example_${index + 1}_person_detected` },
+    enabled_detections: ["person"],
+  }));
+  const keys = cameras.map((camera) => camera.key);
+  const card = document.createElement("ha-home-camera-card");
+  card.setConfig({ cameras, groups: Array.from({ length: 3 }, (_, index) => ({ name: `Vindue ${index + 1}`, mode: "auto", camera_keys: [...keys], fallback_camera: keys[index] })) });
+  document.body.append(card);
+  card._openPicker(0, card.shadowRoot.querySelector('[data-choose="0"]'));
+  const choices = card.shadowRoot.querySelector("[data-choices]");
+  const popupHasAllCameras = choices.querySelectorAll("[data-pick-camera]").length === 12;
+  const popupHasAllStars = choices.querySelectorAll("[data-pin]").length === 12;
+  const hasAutomaticChoice = Boolean(choices.querySelector("[data-pick-auto]"));
+  const threeViews = card.shadowRoot.querySelectorAll("[data-panel]").length === 3;
+  document.title = popupHasAllCameras && popupHasAllStars && hasAutomaticChoice && threeViews ? "pass" : "fail";
+</script>

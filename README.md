@@ -39,11 +39,22 @@ med kameranøglerne som muligheder. Alle kameraer, entiteter, navne og
 navigationsstier kommer alene fra brugerens egen konfiguration.
 
 I den visuelle editor oprettes kameraerne først i det fælles katalog. Kortet
-slår kameraet op i Home Assistants entity-register og finder automatisk aktive
-smart-detektioner på samme enhed. Hver fundet type kan krydses til eller fra.
-Derefter vælges de tilladte kameraer, selector og fallback separat for hvert
-kamerafelt. Ældre konfigurationer med en kameraliste inde i hver gruppe
-migreres automatisk af editoren.
+slår kameraet op i Home Assistants entity-register og finder automatisk alle
+tilgængelige smart-, lyd- og bevægelsesdetektioner på samme enhed. UniFi
+Protect-eventens `event_types` bruges også, så blandt andet person, køretøj,
+dyr, nummerplade, pakke, ansigt, røg, CO, tale, sirene og glasbrud bliver vist
+som selvstændige valg. Fundne bindinger gemmes automatisk i kortets config, og
+hver type kan derefter krydses til eller fra.
+
+Under **Visningsvinduer** vælges 1–3 vinduer. Hvert vindue kan bruge alle eller
+et udvalg af katalogets kameraer og kan starte som **Automatisk efter
+smart-detektion** eller **Statisk kamera**. Automatisk tilstand skifter direkte
+til det senest aktive kamera ud fra de valgte detektioner og går tilbage til
+favorit/fallback, når aktiviteten udløber. Den kompakte dropdown kan altid
+skifte mellem auto og et statisk kamera; stjernen vælger favoritkameraet.
+Den eksterne valgsensor er fortsat valgfri af hensyn til ældre opsætninger.
+Ældre konfigurationer med en kameraliste inde i hver gruppe migreres automatisk
+af editoren.
 
 ```yaml
 type: custom:ha-home-camera-card
@@ -53,7 +64,7 @@ click_action: navigate
 show_header: false
 groups:
   - name: Kamerafelt 1
-    selector_entity: input_select.active_camera
+    mode: auto
     camera_keys: [camera_1]
     fallback_camera: camera_1
 cameras:

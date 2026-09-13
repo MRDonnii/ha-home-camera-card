@@ -1,4 +1,4 @@
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 
 const DETECTION_TYPES = [
   { key: "smoke", label: "Røgalarm", icon: "mdi:smoke-detector-alert", cls: "danger", patterns: ["smoke alarm"] },
@@ -8,9 +8,18 @@ const DETECTION_TYPES = [
   { key: "vehicle", label: "Køretøj", icon: "mdi:car", cls: "vehicle", patterns: ["vehicle detected", "vehicle"] },
   { key: "animal", label: "Dyr", icon: "mdi:paw", cls: "animal", patterns: ["animal detected", "animal"] },
   { key: "package", label: "Pakke", icon: "mdi:package-variant", cls: "object", patterns: ["package"] },
+  { key: "license_plate", label: "Nummerplade", icon: "mdi:license", cls: "vehicle", patterns: ["license plate"] },
+  { key: "face", label: "Ansigt", icon: "mdi:face-recognition", cls: "person", patterns: ["face detected", "face"] },
+  { key: "car", label: "Bil", icon: "mdi:car-side", cls: "vehicle", patterns: ["car detected"] },
+  { key: "pet", label: "Kæledyr", icon: "mdi:dog-side", cls: "animal", patterns: ["pet detected"] },
   { key: "doorbell", label: "Dørklokke", icon: "mdi:doorbell-video", cls: "object", patterns: ["doorbell", "ring"] },
   { key: "speaking", label: "Tale", icon: "mdi:account-voice", cls: "object", patterns: ["speaking detected", "speaking"] },
   { key: "audio", label: "Lydhændelse", icon: "mdi:waveform", cls: "object", patterns: ["audio object detected", "sound detection"] },
+  { key: "siren", label: "Sirene", icon: "mdi:alarm-light", cls: "danger", patterns: ["siren"] },
+  { key: "bark", label: "Gøen", icon: "mdi:dog", cls: "animal", patterns: ["bark"] },
+  { key: "car_alarm", label: "Bilalarm", icon: "mdi:car-emergency", cls: "danger", patterns: ["car alarm"] },
+  { key: "car_horn", label: "Bilhorn", icon: "mdi:bullhorn", cls: "object", patterns: ["car horn"] },
+  { key: "glass_break", label: "Glasbrud", icon: "mdi:window-closed-variant", cls: "danger", patterns: ["glass break"] },
   { key: "object", label: "Objekt", icon: "mdi:bell-ring", cls: "object", patterns: ["object detected"] },
   { key: "motion", label: "Bevægelse", icon: "mdi:motion-sensor", cls: "motion", patterns: ["motion detection", "motion"] },
 ];
@@ -37,6 +46,7 @@ class HaHomeCameraCard extends HTMLElement {
           selector_entity: "",
           camera_keys: ["camera_1"],
           fallback_camera: "camera_1",
+          mode: "auto",
         },
       ],
     };
@@ -115,12 +125,29 @@ class HaHomeCameraCard extends HTMLElement {
     return group.cameras || [];
   }
 
+  _isAutomatic(group, index) {
+    if (this._manual[index] === "__auto__") return true;
+    if (this._manual[index]) return false;
+    return group.mode !== "static";
+  }
+
+  _automaticCamera(group) {
+    const cameras = this._groupCameras(group);
+    const active = cameras.map((camera) => ({ camera, changed: this._activityTimestamp(camera) }))
+      .filter((item) => item.changed > 0)
+      .sort((a, b) => b.changed - a.changed);
+    const selected = this._state(group.selector_entity)?.state;
+    return active[0]?.camera || cameras.find((camera) => camera.key === selected);
+  }
+
   _selected(group, index) {
     const cameras = this._groupCameras(group);
-    const automatic = this._state(group.selector_entity)?.state;
     const preferred = this._getDefaultCamera(group);
-    return cameras.find((camera) => camera.key === this._manual[index])
-      || cameras.find((camera) => camera.key === automatic)
+    const manual = this._manual[index];
+    const automatic = this._isAutomatic(group, index) ? this._automaticCamera(group) : null;
+    return cameras.find((camera) => camera.key === manual && manual !== "__auto__")
+      || automatic
+      || (!this._isAutomatic(group, index) && cameras.find((camera) => camera.key === group.static_camera))
       || cameras.find((camera) => camera.key === preferred)
       || cameras[0];
   }
@@ -179,13 +206,21 @@ class HaHomeCameraCard extends HTMLElement {
     return Array.isArray(camera.enabled_detections) ? new Set(camera.enabled_detections) : null;
   }
 
-  _detectionActive(value) {
+  _detectionValue(value) {
+    return typeof value === "object" && !Array.isArray(value) ? value : { entity_id: value };
+  }
+
+  _detectionActive(value, expectedType) {
     return (Array.isArray(value) ? value : [value]).some((id) => {
-      const state = this._state(id);
+      const binding = this._detectionValue(id);
+      const state = this._state(binding.entity_id);
       if (!state) return false;
       if (state.state === "on") return true;
-      if (!String(id).startsWith("event.")) return false;
-      const changed = Date.parse(state.last_changed || "");
+      if (!String(binding.entity_id).startsWith("event.")) return false;
+      const required = binding.event_type || expectedType;
+      const actual = [state.attributes?.event_type, ...(state.attributes?.smart_detect_types || [])].filter(Boolean);
+      if (required && !actual.includes(required)) return false;
+      const changed = Math.max(Date.parse(state.state || "") || 0, Date.parse(state.last_changed || "") || 0);
       const hold = Math.max(5, Number(this.config.detection_event_hold_seconds || 30)) * 1000;
       const remaining = changed + hold - Date.now();
       if (remaining <= 0) return false;
@@ -198,9 +233,26 @@ class HaHomeCameraCard extends HTMLElement {
     const ids = this._candidateIds(camera);
     const enabled = this._enabledDetections(camera);
     for (const type of DETECTION_TYPES) {
-      if ((!enabled || enabled.has(type.key)) && this._detectionActive(ids[type.key])) return { text: type.label, icon: type.icon, cls: type.cls };
+      if ((!enabled || enabled.has(type.key)) && this._detectionActive(ids[type.key], type.key)) return { text: type.label, icon: type.icon, cls: type.cls };
     }
     return { text: "Roligt", icon: "mdi:shield-check-outline", cls: "quiet" };
+  }
+
+  _activityTimestamp(camera) {
+    const ids = this._candidateIds(camera);
+    const enabled = this._enabledDetections(camera);
+    let newest = 0;
+    for (const type of DETECTION_TYPES) {
+      if (enabled && !enabled.has(type.key)) continue;
+      const values = Array.isArray(ids[type.key]) ? ids[type.key] : [ids[type.key]];
+      for (const value of values.filter(Boolean)) {
+        const binding = this._detectionValue(value);
+        if (!this._detectionActive(binding, type.key)) continue;
+        const state = this._state(binding.entity_id);
+        newest = Math.max(newest, Date.parse(state?.state || "") || 0, Date.parse(state?.last_changed || "") || 0);
+      }
+    }
+    return newest;
   }
 
   _allWatched() {
@@ -210,7 +262,7 @@ class HaHomeCameraCard extends HTMLElement {
       ...this._groupCameras(group).flatMap((camera) => {
         const ids = this._candidateIds(camera);
         const enabled = this._enabledDetections(camera);
-        return [camera.entity, ...DETECTION_TYPES.filter((type) => !enabled || enabled.has(type.key)).flatMap((type) => Array.isArray(ids[type.key]) ? ids[type.key] : [ids[type.key]])];
+        return [camera.entity, ...DETECTION_TYPES.filter((type) => !enabled || enabled.has(type.key)).flatMap((type) => (Array.isArray(ids[type.key]) ? ids[type.key] : [ids[type.key]]).map((value) => this._detectionValue(value).entity_id))];
       }),
     ]).filter(Boolean);
   }
@@ -264,11 +316,11 @@ class HaHomeCameraCard extends HTMLElement {
     const choices = this.shadowRoot.querySelector("[data-choices]");
     if (!group || !dialog || !choices) return;
     this.shadowRoot.querySelector("[data-dialog-title]").textContent = group.name || "Vælg kamera";
-    const automatic = !this._manual[index];
+    const automatic = this._isAutomatic(group, index);
     const defaultCamera = this._getDefaultCamera(group);
     const cameras = this._groupCameras(group);
     choices.innerHTML = `<button class="choice ${automatic ? "active" : ""}" data-pick-auto><ha-icon icon="mdi:auto-fix"></ha-icon><span>Automatisk valg</span>${automatic ? '<ha-icon class="check" icon="mdi:check"></ha-icon>' : ""}</button>${cameras.map((camera) => { const active = this._manual[index] === camera.key; const isDefault = defaultCamera === camera.key; return `<div class="choice-row"><button class="choice ${active ? "active" : ""}" data-pick-camera="${this._escape(camera.key)}"><ha-icon icon="mdi:cctv"></ha-icon><span>${this._escape(camera.name || camera.key)}</span>${active ? '<ha-icon class="check" icon="mdi:check"></ha-icon>' : ""}</button><button class="pin ${isDefault ? "active" : ""}" data-pin="${this._escape(camera.key)}"><ha-icon icon="${isDefault ? "mdi:star" : "mdi:star-outline"}"></ha-icon></button></div>`; }).join("")}<p class="hint">Stjernen sætter standardkameraet for automatisk valg.</p>`;
-    choices.querySelector("[data-pick-auto]")?.addEventListener("click", () => { delete this._manual[index]; dialog.close(); this._update(); });
+    choices.querySelector("[data-pick-auto]")?.addEventListener("click", () => { this._manual[index] = "__auto__"; dialog.close(); this._update(); });
     choices.querySelectorAll("[data-pick-camera]").forEach((button) => button.addEventListener("click", () => { this._manual[index] = button.dataset.pickCamera; dialog.close(); this._update(); }));
     choices.querySelectorAll("[data-pin]").forEach((button) => button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -439,6 +491,14 @@ class HaHomeCameraCardEditor extends HTMLElement {
       next.fallback_camera ||= next.default_camera || next.camera_keys[0] || "";
       return next;
     });
+    if (!config.cameras.length) config.cameras.push({ key: "camera_1", name: "Kamera 1", entity: "" });
+    if (!config.groups.length) config.groups.push({ name: "Kamerafelt 1", camera_keys: config.cameras.map((camera) => camera.key), fallback_camera: config.cameras[0].key, mode: "auto" });
+    const allKeys = config.cameras.map((camera) => camera.key);
+    config.groups.forEach((group) => {
+      group.camera_keys = Array.isArray(group.camera_keys) ? group.camera_keys.filter((key) => allKeys.includes(key)) : [...allKeys];
+      group.mode ||= "auto";
+      group.fallback_camera ||= group.camera_keys[0] || "";
+    });
   }
   async _loadEntityRegistry() {
     const connection = this._hass?.connection;
@@ -446,33 +506,68 @@ class HaHomeCameraCardEditor extends HTMLElement {
     this._registryConnection = connection;
     try {
       this._entityRegistry = await connection.sendMessagePromise({ type: "config/entity_registry/list" });
+      if (this.config) this._syncDiscoveredDetections();
       if (this.isConnected && this.config) this._render();
     } catch (error) {
       this._entityRegistry = [];
       console.warn("HA Home Camera Card: smart-detektioner kunne ikke læses", error);
     }
   }
+  _syncDiscoveredDetections(cameraIndexes = null) {
+    const indexes = cameraIndexes || this.config.cameras.map((_, index) => index);
+    let changed = false;
+    for (const index of indexes) {
+      const camera = this.config.cameras[index];
+      if (!camera?.entity) continue;
+      const discovered = this._discoverDetections(camera);
+      if (!discovered.length) continue;
+      const next = { ...(camera.detections || {}) };
+      for (const item of discovered) {
+        const value = item.event_type ? { entity_id: item.entity_id, event_type: item.event_type } : item.entity_id;
+        if (JSON.stringify(next[item.key]) !== JSON.stringify(value)) { next[item.key] = value; changed = true; }
+      }
+      camera.detections = next;
+      if (!Array.isArray(camera.enabled_detections)) {
+        camera.enabled_detections = discovered.map((item) => item.key);
+        changed = true;
+      }
+    }
+    if (changed) this._emit();
+    return changed;
+  }
   _detectionType(entry) {
     const text = `${entry.original_name || ""} ${entry.name || ""} ${entry.entity_id || ""}`.toLowerCase().replaceAll("_", " ");
     return DETECTION_TYPES.find((type) => type.patterns.some((pattern) => text.includes(pattern)));
+  }
+  _typesForEntry(entry) {
+    const state = this._hass?.states?.[entry.entity_id];
+    const advertised = Array.isArray(state?.attributes?.event_types) ? state.attributes.event_types : [];
+    const fromAttributes = advertised.map((key) => DETECTION_TYPES.find((type) => type.key === key)).filter(Boolean);
+    if (fromAttributes.length) return fromAttributes;
+    const direct = this._detectionType(entry);
+    return direct ? [direct] : [];
   }
   _discoverDetections(camera) {
     const configured = camera.detections || {};
     const found = new Map();
     for (const type of DETECTION_TYPES) {
       const ids = Array.isArray(configured[type.key]) ? configured[type.key] : [configured[type.key]];
-      for (const entityId of ids.filter(Boolean)) found.set(type.key, { ...type, entity_id: entityId, configured: true });
+      for (const value of ids.filter(Boolean)) {
+        const binding = typeof value === "object" ? value : { entity_id: value };
+        found.set(type.key, { ...type, ...binding, configured: true });
+      }
     }
     if (!this._entityRegistry) return [...found.values()];
     const cameraEntry = this._entityRegistry.find((entry) => entry.entity_id === camera.entity);
     if (!cameraEntry?.device_id) return [...found.values()];
     const candidates = this._entityRegistry.filter((entry) => entry.device_id === cameraEntry.device_id && !entry.disabled_by && this._hass?.states?.[entry.entity_id] && (entry.entity_id.startsWith("binary_sensor.") || entry.entity_id.startsWith("event.")));
     for (const entry of candidates) {
-      const type = this._detectionType(entry);
-      if (!type) continue;
-      const existing = found.get(type.key);
-      const isBinary = entry.entity_id.startsWith("binary_sensor.");
-      if (!existing || (!existing.configured && isBinary && existing.entity_id.startsWith("event."))) found.set(type.key, { ...type, entity_id: entry.entity_id });
+      for (const type of this._typesForEntry(entry)) {
+        const existing = found.get(type.key);
+        const isBinary = entry.entity_id.startsWith("binary_sensor.");
+        const binding = { ...type, entity_id: entry.entity_id, ...(isBinary ? {} : { event_type: type.key }) };
+        if (!existing || (!existing.configured && isBinary && existing.entity_id.startsWith("event."))) found.set(type.key, binding);
+      }
     }
     return DETECTION_TYPES.map((type) => found.get(type.key)).filter(Boolean);
   }
@@ -482,18 +577,18 @@ class HaHomeCameraCardEditor extends HTMLElement {
     const detections = this._discoverDetections(camera);
     if (!detections.length) return `<div class="detection-box"><b>Smart-detektioner</b><small>Ingen aktive detektionsentiteter fundet på samme kameraenhed.</small></div>`;
     const enabled = Array.isArray(camera.enabled_detections) ? new Set(camera.enabled_detections) : null;
-    return `<div class="detection-box"><div class="detection-title"><b>Advarsler fra smart-detektion</b><small>Fundet automatisk på samme UniFi Protect-kamera</small></div><div class="detection-grid">${detections.map((item) => `<label class="detection-option"><input type="checkbox" data-detection-toggle="${this._escape(item.key)}" data-detection-entity="${this._escape(item.entity_id)}" data-group="${groupIndex}" data-camera="${cameraIndex}" ${!enabled || enabled.has(item.key) ? "checked" : ""}><ha-icon icon="${item.icon}"></ha-icon><span><b>${item.label}</b><small>${this._escape(item.entity_id)}</small></span></label>`).join("")}</div></div>`;
+    return `<div class="detection-box"><div class="detection-title"><b>Advarsler og automatisk kameraskift</b><small>Fundet automatisk på samme UniFi Protect-kamera</small></div><div class="detection-grid">${detections.map((item) => `<label class="detection-option"><input type="checkbox" data-detection-toggle="${this._escape(item.key)}" data-detection-entity="${this._escape(item.entity_id)}" data-detection-event-type="${this._escape(item.event_type || "")}" data-group="${groupIndex}" data-camera="${cameraIndex}" ${!enabled || enabled.has(item.key) ? "checked" : ""}><ha-icon icon="${item.icon}"></ha-icon><span><b>${item.label}</b><small>${this._escape(item.entity_id)}</small></span></label>`).join("")}</div></div>`;
   }
   _catalogMarkup() {
     return `<section class="catalog"><div class="section-head"><div><b>1. Kameraer og smart-detektioner</b><small>Tilføj hvert kamera én gang. Mulighederne findes automatisk via kameraets Home Assistant-enhed.</small></div></div>${this.config.cameras.map((camera, ci) => `<div class="camera"><div class="head"><b>${this._escape(camera.name || camera.key || `Kamera ${ci + 1}`)}</b><button class="remove" data-remove-catalog-camera="${ci}">Fjern</button></div><div class="fields"><label><span>Nøgle</span><input data-catalog-field="key" data-camera="${ci}" value="${this._escape(camera.key || "")}"></label><label><span>Navn</span><input data-catalog-field="name" data-camera="${ci}" value="${this._escape(camera.name || "")}"></label><label><span>Kamera</span><ha-entity-picker data-catalog-picker="entity" data-camera="${ci}" value="${this._escape(camera.entity || "")}" include-domains='["camera"]' allow-custom-entity></ha-entity-picker></label><label><span>Billedzoom (1 = ingen)</span><input type="number" min="1" max="3" step="0.01" data-catalog-field="fit_scale" data-camera="${ci}" value="${this._escape(camera.fit_scale || 1)}"></label><label><span>Sti ved tryk (valgfri)</span><input data-catalog-field="navigation_path" data-camera="${ci}" value="${this._escape(camera.navigation_path || "")}"></label>${this._detectionEditor(camera, -1, ci)}</div></div>`).join("")}<button class="add" data-add-catalog-camera>+ Tilføj kamera</button></section>`;
   }
   _viewsMarkup() {
-    return `<section class="views"><div class="section-head"><div><b>2. Kamerafelter på kortet</b><small>Vælg kameraerne i hvert felt, selector til automatisk skift og fallback.</small></div></div>${this.config.groups.map((group, gi) => { const allowed = new Set(group.camera_keys || []); const available = this.config.cameras.filter((camera) => allowed.has(camera.key)); return `<div class="group"><div class="head"><b>${this._escape(group.name || `Kamerafelt ${gi + 1}`)}</b><button class="remove" data-remove-group="${gi}">Fjern felt</button></div><div class="fields"><label><span>Feltnavn</span><input data-group-field="name" data-group="${gi}" value="${this._escape(group.name || "")}"></label><label><span>Automatisk valg fra HA</span><ha-entity-picker data-group-picker="selector_entity" data-group="${gi}" value="${this._escape(group.selector_entity || "")}" allow-custom-entity></ha-entity-picker></label><label><span>Fallback</span><select data-group-select="fallback_camera" data-group="${gi}"><option value="">Første valgte kamera</option>${available.map((camera) => `<option value="${this._escape(camera.key)}" ${group.fallback_camera === camera.key ? "selected" : ""}>${this._escape(camera.name || camera.key)}</option>`).join("")}</select></label></div><div class="camera-allow"><b>Kameraer i dette felt</b><div class="allow-grid">${this.config.cameras.map((camera) => `<label><input type="checkbox" data-camera-allow="${this._escape(camera.key)}" data-group="${gi}" ${allowed.has(camera.key) ? "checked" : ""}><span>${this._escape(camera.name || camera.key)}</span></label>`).join("")}</div></div></div>`; }).join("")}<button class="add" data-add-group>+ Tilføj kamerafelt</button></section>`;
+    return `<section class="views"><div class="section-head"><div><b>2. Visningsvinduer</b><small>Vælg statisk eller automatisk skift. Ved auto går vinduet tilbage til favoritkameraet efter aktivitet.</small></div><label><span>Antal vinduer</span><select data-view-count><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label></div>${this.config.groups.map((group, gi) => { const allowed = new Set(group.camera_keys || []); const available = this.config.cameras.filter((camera) => allowed.has(camera.key)); return `<div class="group"><div class="head"><b>${this._escape(group.name || `Kamerafelt ${gi + 1}`)}</b></div><div class="fields"><label><span>Navn på vindue</span><input data-group-field="name" data-group="${gi}" value="${this._escape(group.name || "")}"></label><label><span>Starttilstand</span><select data-group-select="mode" data-group="${gi}"><option value="auto" ${group.mode !== "static" ? "selected" : ""}>Automatisk efter smart-detektion</option><option value="static" ${group.mode === "static" ? "selected" : ""}>Statisk kamera</option></select></label><label><span>Favorit / fallback ved auto</span><select data-group-select="fallback_camera" data-group="${gi}"><option value="">Første valgte kamera</option>${available.map((camera) => `<option value="${this._escape(camera.key)}" ${group.fallback_camera === camera.key ? "selected" : ""}>${this._escape(camera.name || camera.key)}</option>`).join("")}</select></label><label><span>Kamera ved statisk tilstand</span><select data-group-select="static_camera" data-group="${gi}"><option value="">Brug favorit</option>${available.map((camera) => `<option value="${this._escape(camera.key)}" ${group.static_camera === camera.key ? "selected" : ""}>${this._escape(camera.name || camera.key)}</option>`).join("")}</select></label><label><span>Ekstern valgsensor (valgfri)</span><ha-entity-picker data-group-picker="selector_entity" data-group="${gi}" value="${this._escape(group.selector_entity || "")}" allow-custom-entity></ha-entity-picker></label></div><div class="camera-allow"><b>Kameraer som må vises i dette vindue</b><div class="allow-actions"><button type="button" data-allow-all="${gi}">Vælg alle</button><button type="button" data-allow-none="${gi}">Fravælg alle</button></div><div class="allow-grid">${this.config.cameras.map((camera) => `<label><input type="checkbox" data-camera-allow="${this._escape(camera.key)}" data-group="${gi}" ${allowed.has(camera.key) ? "checked" : ""}><span>${this._escape(camera.name || camera.key)}</span></label>`).join("")}</div></div></div>`; }).join("")}</section>`;
   }
   _render() {
     if (!this.shadowRoot || !this.config) return;
     this.config.groups ||= [];
-    this.shadowRoot.innerHTML = `<style>*{box-sizing:border-box}.editor{display:grid;gap:14px;color:var(--primary-text-color)}.top,.catalog,.views,.group,.camera{display:grid;gap:9px;padding:12px;border:1px solid var(--divider-color);border-radius:12px}.catalog,.views{padding:14px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}label span{display:block;margin-bottom:4px;color:var(--secondary-text-color);font-size:11px}input,select{width:100%;padding:9px;border:1px solid var(--divider-color);border-radius:8px;background:var(--popupBG,var(--card-background-color,#1c1f26));color:inherit}.head,.section-head{display:flex;justify-content:space-between;align-items:center}.section-head small{display:block;margin-top:3px;color:var(--secondary-text-color);font-size:10px}.camera{padding:10px}.add,.remove{padding:8px 10px;border:1px solid var(--primary-color);border-radius:8px;background:transparent;color:var(--primary-color);cursor:pointer}.remove{border-color:var(--error-color);color:var(--error-color)}ha-entity-picker{display:block}.check{display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:flex-end;gap:8px}.check span{margin:0!important}.check input{width:auto!important}.detection-box,.camera-allow{display:grid;gap:8px;padding:10px;border:1px solid color-mix(in srgb,var(--primary-color) 18%,var(--divider-color));border-radius:11px;background:color-mix(in srgb,var(--primary-color) 4%,var(--card-background-color));grid-column:1/-1}.detection-box>small,.detection-title small{display:block;margin-top:2px;color:var(--secondary-text-color);font-size:10px}.detection-grid,.allow-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.detection-option,.allow-grid label{display:flex;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid var(--divider-color);border-radius:9px;background:var(--popupBG,var(--card-background-color,#1c1f26));cursor:pointer}.detection-option input,.allow-grid input{width:auto;flex:0 0 auto}.detection-option ha-icon{width:18px;height:18px;--mdc-icon-size:18px;color:var(--primary-color)}.detection-option span{min-width:0;margin:0}.detection-option b,.detection-option small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.detection-option b{font-size:11px}.detection-option small{color:var(--secondary-text-color);font-size:8px}@media(max-width:600px){.fields,.detection-grid,.allow-grid{grid-template-columns:1fr}}</style><div class="editor"><div class="top fields"><label><span>Titel</span><input data-root="title" value="${this._escape(this.config.title || "")}"></label><label><span>Sti til alle kameraer</span><input data-root="navigation_path" value="${this._escape(this.config.navigation_path || "")}"></label><label class="check"><span>Vis titel-linje</span><input type="checkbox" data-root-check="show_header" ${this.config.show_header ? "checked" : ""}></label></div>${this._catalogMarkup()}${this._viewsMarkup()}</div>`;
+    this.shadowRoot.innerHTML = `<style>*{box-sizing:border-box}.editor{display:grid;gap:14px;color:var(--primary-text-color)}.top,.catalog,.views,.group,.camera{display:grid;gap:9px;padding:12px;border:1px solid var(--divider-color);border-radius:12px}.catalog,.views{padding:14px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}label span{display:block;margin-bottom:4px;color:var(--secondary-text-color);font-size:11px}input,select{width:100%;padding:9px;border:1px solid var(--divider-color);border-radius:8px;background:var(--popupBG,var(--card-background-color,#1c1f26));color:inherit}.head,.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.section-head small{display:block;margin-top:3px;color:var(--secondary-text-color);font-size:10px}.section-head>label{min-width:120px}.camera{padding:10px}.add,.remove,.allow-actions button{padding:8px 10px;border:1px solid var(--primary-color);border-radius:8px;background:transparent;color:var(--primary-color);cursor:pointer}.remove{border-color:var(--error-color);color:var(--error-color)}ha-entity-picker{display:block}.check{display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:flex-end;gap:8px}.check span{margin:0!important}.check input{width:auto!important}.detection-box,.camera-allow{display:grid;gap:8px;padding:10px;border:1px solid color-mix(in srgb,var(--primary-color) 18%,var(--divider-color));border-radius:11px;background:color-mix(in srgb,var(--primary-color) 4%,var(--card-background-color));grid-column:1/-1}.allow-actions{display:flex;gap:6px}.allow-actions button{padding:5px 8px;font-size:10px}.detection-box>small,.detection-title small{display:block;margin-top:2px;color:var(--secondary-text-color);font-size:10px}.detection-grid,.allow-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.detection-option,.allow-grid label{display:flex;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid var(--divider-color);border-radius:9px;background:var(--popupBG,var(--card-background-color,#1c1f26));cursor:pointer}.detection-option input,.allow-grid input{width:auto;flex:0 0 auto}.detection-option ha-icon{width:18px;height:18px;--mdc-icon-size:18px;color:var(--primary-color)}.detection-option span{min-width:0;margin:0}.detection-option b,.detection-option small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.detection-option b{font-size:11px}.detection-option small{color:var(--secondary-text-color);font-size:8px}@media(max-width:600px){.fields,.detection-grid,.allow-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.section-head>label{width:100%}}</style><div class="editor"><div class="top fields"><label><span>Titel</span><input data-root="title" value="${this._escape(this.config.title || "")}"></label><label><span>Sti til alle kameraer</span><input data-root="navigation_path" value="${this._escape(this.config.navigation_path || "")}"></label><label class="check"><span>Vis titel-linje</span><input type="checkbox" data-root-check="show_header" ${this.config.show_header ? "checked" : ""}></label></div>${this._catalogMarkup()}${this._viewsMarkup()}</div>`;
     const actionLabel = document.createElement("label");
     actionLabel.innerHTML = `<span>Klikhandling</span><select data-root="click_action"><option value="navigate">Navigér</option><option value="more-info">Mere info</option><option value="none">Ingen handling</option></select>`;
     const actionSelect = actionLabel.querySelector("select");
@@ -510,8 +605,19 @@ class HaHomeCameraCardEditor extends HTMLElement {
     this.shadowRoot.querySelectorAll("input[type=number]").forEach((input) => input.addEventListener("change", () => this._changeInput(input)));
     this.shadowRoot.querySelectorAll("input[type=checkbox]").forEach((input) => input.addEventListener("change", () => this._changeCheckbox(input)));
     this.shadowRoot.querySelectorAll("[data-group-select]").forEach((select) => select.addEventListener("change", () => { this.config.groups[Number(select.dataset.group)][select.dataset.groupSelect] = select.value; this._emit(); }));
-    this.shadowRoot.querySelector("[data-add-group]")?.addEventListener("click", () => { const keys = this.config.cameras.map((camera) => camera.key); this.config.groups.push({ name: `Kamerafelt ${this.config.groups.length + 1}`, selector_entity: "", camera_keys: keys, fallback_camera: keys[0] || "" }); this._emit(); this._render(); });
-    this.shadowRoot.querySelectorAll("[data-remove-group]").forEach((button) => button.addEventListener("click", () => { this.config.groups.splice(Number(button.dataset.removeGroup), 1); this._emit(); this._render(); }));
+    const viewCount = this.shadowRoot.querySelector("[data-view-count]");
+    if (viewCount) {
+      viewCount.value = String(Math.min(3, Math.max(1, this.config.groups.length)));
+      viewCount.addEventListener("change", () => {
+        const count = Number(viewCount.value);
+        const keys = this.config.cameras.map((camera) => camera.key);
+        while (this.config.groups.length < count) this.config.groups.push({ name: `Kamerafelt ${this.config.groups.length + 1}`, mode: "auto", camera_keys: [...keys], fallback_camera: keys[0] || "" });
+        this.config.groups.splice(count);
+        this._emit(); this._render();
+      });
+    }
+    this.shadowRoot.querySelectorAll("[data-allow-all]").forEach((button) => button.addEventListener("click", () => { const group = this.config.groups[Number(button.dataset.allowAll)]; group.camera_keys = this.config.cameras.map((camera) => camera.key); group.fallback_camera ||= group.camera_keys[0] || ""; this._emit(); this._render(); }));
+    this.shadowRoot.querySelectorAll("[data-allow-none]").forEach((button) => button.addEventListener("click", () => { const group = this.config.groups[Number(button.dataset.allowNone)]; group.camera_keys = []; group.fallback_camera = ""; group.static_camera = ""; this._emit(); this._render(); }));
     this.shadowRoot.querySelector("[data-add-catalog-camera]")?.addEventListener("click", () => { let number = this.config.cameras.length + 1; while (this.config.cameras.some((camera) => camera.key === `camera_${number}`)) number += 1; const camera = { key: `camera_${number}`, name: `Kamera ${number}`, entity: "" }; this.config.cameras.push(camera); this.config.groups.forEach((group) => group.camera_keys.push(camera.key)); this._emit(); this._render(); });
     this.shadowRoot.querySelectorAll("[data-remove-catalog-camera]").forEach((button) => button.addEventListener("click", () => { const camera = this.config.cameras[Number(button.dataset.removeCatalogCamera)]; this.config.cameras.splice(Number(button.dataset.removeCatalogCamera), 1); this.config.groups.forEach((group) => { group.camera_keys = group.camera_keys.filter((key) => key !== camera.key); if (group.fallback_camera === camera.key) group.fallback_camera = group.camera_keys[0] || ""; }); this._emit(); this._render(); }));
   }
@@ -527,7 +633,7 @@ class HaHomeCameraCardEditor extends HTMLElement {
     } else if (input.dataset.detectionToggle) {
       const camera = this.config.cameras[Number(input.dataset.camera)];
       const discovered = this._discoverDetections(camera);
-      camera.detections = Object.fromEntries(discovered.map((item) => [item.key, item.entity_id]));
+      camera.detections = Object.fromEntries(discovered.map((item) => [item.key, item.event_type ? { entity_id: item.entity_id, event_type: item.event_type } : item.entity_id]));
       const enabled = new Set(Array.isArray(camera.enabled_detections) ? camera.enabled_detections : discovered.map((item) => item.key));
       if (input.checked) enabled.add(input.dataset.detectionToggle); else enabled.delete(input.dataset.detectionToggle);
       camera.enabled_detections = DETECTION_TYPES.map((type) => type.key).filter((key) => enabled.has(key));
@@ -552,6 +658,7 @@ class HaHomeCameraCardEditor extends HTMLElement {
       camera[picker.dataset.catalogPicker] = value;
       delete camera.detections;
       delete camera.enabled_detections;
+      this._syncDiscoveredDetections([Number(picker.dataset.camera)]);
     }
     this._emit();
     if (picker.dataset.catalogPicker) this._render();
