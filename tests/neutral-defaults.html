@@ -31,6 +31,7 @@
     emptyEntity: stub.groups[0].cameras[0].entity === "",
     genericDefaults: card.config.groups[0].cameras[0].fit_scale === undefined,
     configuredFallback: card._selected(fallbackGroup, 0).key === "camera_2",
+    solidPickerSurface: card.shadowRoot.querySelector("style").textContent.includes("linear-gradient(var(--popup-solid),var(--popup-solid)),#1c1f26"),
     stableAfterIrrelevant: card.shadowRoot.querySelector("ha-card") === shell,
   });
 </script>
