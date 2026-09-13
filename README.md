@@ -24,6 +24,10 @@ kildeformat ikke kan gøre deres panel højere end de øvrige.
 Kameraer kan desuden få individuel `fit_scale`. Standardværdien er altid `1`;
 kortet indeholder ingen særlige regler for bestemte kameranavne eller nøgler.
 Ved indlæsning og kameraskift vises kameraets seneste snapshot med det samme.
+Kortet forindlæser som standard stillbillederne for de valgte kameraer, så et
+bevægelsesstyret skift har et allerede dekodet billede klar, mens den ene nye
+live-stream forbindes. Funktionen kan slås fra i den visuelle editor. Kortet
+holder ikke skjulte live-streams åbne.
 Live-feedet startes bagved og fades først ind, når dets billedmedie er klar.
 Kort og editor genbruger deres eksisterende DOM ved uændrede konfigurationer og
 irrelevante HA-state-opdateringer, så hover, fokus og åbne felter ikke flimrer.

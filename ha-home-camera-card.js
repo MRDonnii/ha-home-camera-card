@@ -1,4 +1,8 @@
-const VERSION = "0.8.2";
+const VERSION = "0.8.3";
+
+// Shared by desktop/mobile card instances. This warms only still images;
+// live streams are still opened exclusively for the visible camera views.
+const SNAPSHOT_CACHE = window.__haHomeCameraSnapshotCache ||= new Map();
 
 const DETECTION_TYPES = [
   { key: "smoke", label: "Røgalarm", icon: "mdi:smoke-detector-alert", cls: "danger", patterns: ["smoke alarm"] },
@@ -39,6 +43,7 @@ class HaHomeCameraCard extends HTMLElement {
       navigation_path: "",
       click_action: "navigate",
       show_header: true,
+      preload_snapshots: true,
       cameras: [{ key: "camera_1", name: "Kamera 1", entity: "", navigation_path: "" }],
       groups: [
         {
@@ -67,6 +72,7 @@ class HaHomeCameraCard extends HTMLElement {
       aspect_ratio: "16:9",
       show_header: false,
       fill_height: false,
+      preload_snapshots: true,
       ...config,
     };
     this.classList.toggle("fill-height", Boolean(nextConfig.fill_height));
@@ -86,6 +92,7 @@ class HaHomeCameraCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    this._preloadSnapshots();
     const signature = this._allWatched().map((id) => {
       const state = hass?.states?.[id];
       return `${id}:${state?.state || ""}:${state?.last_changed || ""}:${state?.attributes?.entity_picture || ""}`;
@@ -116,6 +123,44 @@ class HaHomeCameraCard extends HTMLElement {
     const catalog = new Map();
     for (const group of this.config?.groups || []) for (const camera of group.cameras || []) if (!catalog.has(camera.key)) catalog.set(camera.key, camera);
     return [...catalog.values()];
+  }
+
+  _snapshotUrl(camera) {
+    const state = this._state(camera?.entity);
+    const entityPicture = state?.attributes?.entity_picture;
+    if (entityPicture) return this._hass?.hassUrl(entityPicture) || entityPicture;
+    const token = state?.attributes?.access_token;
+    return token ? this._hass?.hassUrl(`/api/camera_proxy/${camera.entity}?token=${token}`) : "";
+  }
+
+  _preloadSnapshots() {
+    if (!this._hass || this.config?.preload_snapshots === false || typeof Image === "undefined") return;
+    const wanted = new Set();
+    for (const camera of this._cameraCatalog()) {
+      const src = this._snapshotUrl(camera);
+      if (!src) continue;
+      wanted.add(src);
+      const cached = SNAPSHOT_CACHE.get(src);
+      if (cached && Date.now() - cached.touched < 30000) continue;
+      const image = new Image();
+      const entry = { image, ready: false, touched: Date.now() };
+      SNAPSHOT_CACHE.set(src, entry);
+      image.decoding = "async";
+      image.onload = () => {
+        entry.ready = true;
+        entry.touched = Date.now();
+        image.decode?.().catch(() => {});
+      };
+      image.onerror = () => SNAPSHOT_CACHE.delete(src);
+      image.src = src;
+    }
+    if (SNAPSHOT_CACHE.size > 40) {
+      [...SNAPSHOT_CACHE.entries()]
+        .filter(([src]) => !wanted.has(src))
+        .sort((a, b) => a[1].touched - b[1].touched)
+        .slice(0, SNAPSHOT_CACHE.size - 40)
+        .forEach(([src]) => SNAPSHOT_CACHE.delete(src));
+    }
   }
 
   _groupCameras(group) {
@@ -423,9 +468,8 @@ class HaHomeCameraCard extends HTMLElement {
     snapshot.className = "snapshot";
     snapshot.alt = camera.name || camera.key || "Kamera";
     snapshot.decoding = "async";
-    const entityPicture = state.attributes?.entity_picture;
-    if (entityPicture) snapshot.src = this._hass.hassUrl(entityPicture);
-    else if (state.attributes?.access_token) snapshot.src = this._hass.hassUrl(`/api/camera_proxy/${camera.entity}?token=${state.attributes.access_token}`);
+    const snapshotUrl = this._snapshotUrl(camera);
+    if (snapshotUrl) snapshot.src = snapshotUrl;
     feed.replaceChildren(snapshot);
     try {
       const helpers = await window.loadCardHelpers();
@@ -633,6 +677,10 @@ class HaHomeCameraCardEditor extends HTMLElement {
     fillLabel.className = "check";
     fillLabel.innerHTML = `<span>Udfyld tildelt højde</span><input type="checkbox" data-root-check="fill_height" ${this.config.fill_height ? "checked" : ""}>`;
     this.shadowRoot.querySelector(".top")?.appendChild(fillLabel);
+    const preloadLabel = document.createElement("label");
+    preloadLabel.className = "check";
+    preloadLabel.innerHTML = `<span>Forindlæs stillbilleder (hurtigere skift)</span><input type="checkbox" data-root-check="preload_snapshots" ${this.config.preload_snapshots !== false ? "checked" : ""}>`;
+    this.shadowRoot.querySelector(".top")?.appendChild(preloadLabel);
     this.shadowRoot.querySelectorAll("ha-entity-picker").forEach((picker) => { picker.hass = this._hass; picker.addEventListener("value-changed", (event) => this._changePicker(picker, event.detail.value)); });
     actionSelect.addEventListener("change", () => this._changeInput(actionSelect));
     this.shadowRoot.querySelectorAll("input[type=text], input:not([type])").forEach((input) => input.addEventListener("change", () => this._changeInput(input)));

@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>pending</title>
+<script>
+  const NativeImage = window.Image;
+  window.preloadCount = 0;
+  window.Image = class extends NativeImage {
+    constructor() { super(); window.preloadCount += 1; }
+  };
+  window.loadCardHelpers = async () => ({
+    createCardElement: async () => {
+      const card = document.createElement("div");
+      const image = document.createElement("img");
+      image.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+      card.append(image);
+      return card;
+    }
+  });
+</script>
+<script type="module">
+  import "../ha-home-camera-card.js";
+  const card = document.createElement("ha-home-camera-card");
+  card.setConfig({
+    cameras: [1, 2, 3].map((n) => ({ key:`c${n}`, name:`Kamera ${n}`, entity:`camera.c${n}`, detections:{ person:`binary_sensor.c${n}_person` }, enabled_detections:["person"] })),
+    groups: [
+      { name:"Et", mode:"auto", camera_keys:["c1","c2"], auto_camera_keys:["c1","c2"], fallback_camera:"c1" },
+      { name:"To", mode:"static", camera_keys:["c3"], fallback_camera:"c3" }
+    ]
+  });
+  document.body.append(card);
+  const states = Object.fromEntries([1, 2, 3].map((n) => [`camera.c${n}`, { state:"idle", last_changed:"2026-09-13T10:00:00Z", attributes:{ entity_picture:`/api/camera_proxy/camera.c${n}` } }]));
+  states.binary_sensor_c2_person = undefined;
+  card.hass = { hassUrl:(path) => `http://ha.local${path}`, states:{ ...states, "binary_sensor.c2_person":{ state:"off", last_changed:"2026-09-13T10:00:00Z", attributes:{} } } };
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const stableFeed = card.shadowRoot.querySelector('[data-feed="1"] [data-live-card]');
+  card.hass = { hassUrl:(path) => `http://ha.local${path}`, states:{ ...states, "binary_sensor.c2_person":{ state:"on", last_changed:"2026-09-13T15:00:00Z", attributes:{} } } };
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const switched = card._feedEntities[0] === "camera.c2";
+  const otherFeedStable = stableFeed === card.shadowRoot.querySelector('[data-feed="1"] [data-live-card]');
+  const warmedAll = window.preloadCount === 3;
+  const immediatePoster = card.shadowRoot.querySelector('[data-feed="0"] .snapshot')?.src.includes("camera.c2");
+  document.title = switched && otherFeedStable && warmedAll && immediatePoster ? "pass" : `fail:${switched}:${otherFeedStable}:${warmedAll}:${immediatePoster}:${window.preloadCount}`;
+</script>
