@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="module">
+  import "../ha-home-camera-card.js";
+
+  const stub = customElements.get("ha-home-camera-card").getStubConfig();
+  const card = document.createElement("ha-home-camera-card");
+  card.setConfig({
+    groups: [{
+      name: "Test",
+      cameras: [{ key: "camera_special", name: "Testkamera", entity: "camera.test" }],
+    }],
+  });
+  document.body.append(card);
+  const shell = card.shadowRoot.querySelector("ha-card");
+  card.hass = { states: { "sensor.unrelated": { state: "changed" } } };
+  const fallbackGroup = {
+    name: "Test",
+    selector_entity: "sensor.active_camera",
+    fallback_select_entity: "input_select.preferred_camera",
+    cameras: [
+      { key: "camera_1", entity: "camera.example_1" },
+      { key: "camera_2", entity: "camera.example_2" },
+    ],
+  };
+  card.hass = { states: { "input_select.preferred_camera": { state: "camera_2" } } };
+
+  document.title = JSON.stringify({
+    neutralStub: stub.groups[0].name === "Kameragruppe" && stub.groups[0].cameras[0].key === "camera_1",
+    emptyNavigation: stub.navigation_path === "",
+    emptyEntity: stub.groups[0].cameras[0].entity === "",
+    genericDefaults: card.config.groups[0].cameras[0].fit_scale === undefined,
+    configuredFallback: card._selected(fallbackGroup, 0).key === "camera_2",
+    stableAfterIrrelevant: card.shadowRoot.querySelector("ha-card") === shell,
+  });
+</script>

@@ -4,7 +4,7 @@
 
 ![Neutral mobile preview of ha-home-camera-card](docs/preview.png)
 
-> Rendered at 390 px mobile width with fictional Home Assistant entities and values. No private dashboard, person, address, camera, or sensor data is included.
+> Rendered with fictional Home Assistant entities and values. No private dashboard, person, address, camera, or sensor data is included.
 
 
 Et responsivt Home Assistant-kort, der samler flere automatiske kameragrupper i
@@ -21,8 +21,8 @@ sted hen — sæt en global `navigation_path` for hele kortet, og/eller en
 individuel `navigation_path` pr. kamera, som har forrang når den er sat.
 Feedrammen håndhæves fysisk som 16:9 med klipning, så kameraer med et andet
 kildeformat ikke kan gøre deres panel højere end de øvrige.
-Kameraer kan desuden få individuel `fit_scale`; Fordør bruger som standard
-`1.34`, så et 4:3-kildebillede fylder hele 16:9-rammen uden sorte sidefelter.
+Kameraer kan desuden få individuel `fit_scale`. Standardværdien er altid `1`;
+kortet indeholder ingen særlige regler for bestemte kameranavne eller nøgler.
 Ved indlæsning og kameraskift vises kameraets seneste snapshot med det samme.
 Live-feedet startes bagved og fades først ind, når dets billedmedie er klar.
 Kort og editor genbruger deres eksisterende DOM ved uændrede konfigurationer og
@@ -30,29 +30,34 @@ irrelevante HA-state-opdateringer, så hover, fokus og åbne felter ikke flimrer
 Klik på et feed kan konfigureres som navigation, mere-info eller ingen handling.
 På brede dashboardlayouts kan `fill_height: true` få et kamera-grid til at
 udfylde hele den tildelte kolonne med lige høje rækker.
-Standardnavigationen er `/teknik-overblik/overvagning`, og kameravælgeren åbner
-forankret direkte ved den knap, der blev trykket på.
+Standardnavigationen er tom, så kortet aldrig sender andre installationer til
+en privat dashboardsti. Kameravælgeren åbner forankret direkte ved den knap,
+der blev trykket på. Stjernen i vælgeren gemmer gruppens foretrukne kamera
+lokalt i browseren. Hvis standardvalget skal deles mellem flere enheder, kan
+gruppen i stedet få `fallback_select_entity`, som skal være en `input_select`
+med kameranøglerne som muligheder. Alle kameraer, entiteter, navne og
+navigationsstier kommer alene fra brugerens egen konfiguration.
 
 ```yaml
 type: custom:ha-home-camera-card
-title: Kameraer lige nu
-navigation_path: /teknik-overblik/overvagning
+title: Kameraer
+navigation_path: /lovelace/cameras
 click_action: navigate
 show_header: false
 groups:
-  - name: Forside
-    selector_entity: sensor.active_front_camera
+  - name: Udendørs
+    selector_entity: input_select.active_camera
     cameras:
-      - key: front_door
-        name: Fordør
-        entity: camera.front_door
-        navigation_path: /teknik-overblik/dore-og-vinduer
+      - key: camera_1
+        name: Kamera 1
+        entity: camera.example_camera
+        navigation_path: /lovelace/cameras
         detections:
-          motion: binary_sensor.front_door_motion
+          motion: binary_sensor.example_camera_motion
 ```
 
 Hvis `detections` udelades, finder kortet automatisk standardnavne ud fra
-kameranøglen, fx `binary_sensor.front_door_person_detected`. Alle egne
+kameranøglen, fx `binary_sensor.camera_1_person_detected`. Alle egne
 tema-variable har fallback til Home Assistants standardvariabler og en normal
 literal farve.
 

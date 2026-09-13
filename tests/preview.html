@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;width:900px;height:300px;overflow:hidden;background:#071018}
+  body{display:grid;place-items:center;font-family:Arial,sans-serif}
+  ha-home-camera-card{width:860px}
+</style>
+<script>
+  window.loadCardHelpers = async () => ({
+    createCardElement(config) {
+      const element = document.createElement("div");
+      const colors = ["#18364a", "#24443f", "#38304d"];
+      const index = Number(config.camera_image.slice(-1)) - 1;
+      element.style.background = `linear-gradient(145deg,${colors[index]} 0 52%,#88a7aa 52% 70%,#496b78 70%)`;
+      return element;
+    },
+  });
+</script>
+<script type="module">
+  import "../ha-home-camera-card.js";
+  const card = document.createElement("ha-home-camera-card");
+  card.setConfig({
+    title: "Kameraer",
+    show_header: false,
+    click_action: "none",
+    groups: [1, 2, 3].map((number) => ({
+      name: `Område ${number}`,
+      cameras: [{ key: `camera_${number}`, name: `Kamera ${number}`, entity: `camera.example_${number}` }],
+    })),
+  });
+  document.body.append(card);
+  card.hass = {
+    states: Object.fromEntries([1, 2, 3].map((number) => [`camera.example_${number}`, {
+      state: "idle",
+      attributes: {
+        entity_picture: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 450'%3E%3Crect width='800' height='450' fill='%23112636'/%3E%3Cpath d='M0 350 180 175l145 125 150-190 325 240v100H0z' fill='%235b7f88'/%3E%3Ccircle cx='665' cy='90' r='42' fill='%23f6cf72'/%3E%3C/svg%3E`,
+      },
+    }])),
+    hassUrl: (path) => path,
+  };
+</script>
