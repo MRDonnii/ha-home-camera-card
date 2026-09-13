@@ -52,6 +52,8 @@ smart-detektion** eller **Statisk kamera**. Automatisk tilstand skifter direkte
 til det senest aktive kamera ud fra de valgte detektioner og går tilbage til
 favorit/fallback, når aktiviteten udløber. Den kompakte dropdown kan altid
 skifte mellem auto og et statisk kamera; stjernen vælger favoritkameraet.
+En separat **Auto**-knap ud for hvert kamera bestemmer, om automatikken må
+skifte til netop det kamera, uden at fjerne kameraet fra de manuelle valg.
 Den eksterne valgsensor er fortsat valgfri af hensyn til ældre opsætninger.
 Ældre konfigurationer med en kameraliste inde i hver gruppe migreres automatisk
 af editoren.
@@ -66,6 +68,7 @@ groups:
   - name: Kamerafelt 1
     mode: auto
     camera_keys: [camera_1]
+    auto_camera_keys: [camera_1]
     fallback_camera: camera_1
 cameras:
   - key: camera_1

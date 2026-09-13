@@ -12,13 +12,24 @@
   }));
   const keys = cameras.map((camera) => camera.key);
   const card = document.createElement("ha-home-camera-card");
-  card.setConfig({ cameras, groups: Array.from({ length: 3 }, (_, index) => ({ name: `Vindue ${index + 1}`, mode: "auto", camera_keys: [...keys], fallback_camera: keys[index] })) });
+  card.setConfig({ cameras, groups: Array.from({ length: 3 }, (_, index) => ({ name: `Vindue ${index + 1}`, mode: "auto", camera_keys: [...keys], auto_camera_keys: keys.slice(index, index + 2), fallback_camera: keys[index] })) });
   document.body.append(card);
   card._openPicker(0, card.shadowRoot.querySelector('[data-choose="0"]'));
   const choices = card.shadowRoot.querySelector("[data-choices]");
   const popupHasAllCameras = choices.querySelectorAll("[data-pick-camera]").length === 12;
   const popupHasAllStars = choices.querySelectorAll("[data-pin]").length === 12;
+  const popupHasAutoPerCamera = choices.querySelectorAll("[data-auto-pin]").length === 12 && choices.querySelectorAll("[data-auto-pin].active").length === 2;
   const hasAutomaticChoice = Boolean(choices.querySelector("[data-pick-auto]"));
   const threeViews = card.shadowRoot.querySelectorAll("[data-panel]").length === 3;
-  document.title = popupHasAllCameras && popupHasAllStars && hasAutomaticChoice && threeViews ? "pass" : "fail";
+  const editor = document.createElement("ha-home-camera-card-editor");
+  editor.setConfig(card.config);
+  document.body.append(editor);
+  const autoButtons = editor.shadowRoot.querySelectorAll("[data-camera-auto]");
+  const separateAutoButtons = autoButtons.length === 36 && editor.shadowRoot.querySelectorAll('[data-camera-auto].is-active').length === 6;
+  card._hass = { states: {
+    "binary_sensor.example_2_person_detected": { state: "on", last_changed: "2026-09-13T15:00:00Z" },
+    "binary_sensor.example_3_person_detected": { state: "on", last_changed: "2026-09-13T15:01:00Z" },
+  } };
+  const autoSubsetApplied = card._automaticCamera(card.config.groups[0])?.key === "camera_2";
+  document.title = popupHasAllCameras && popupHasAllStars && popupHasAutoPerCamera && hasAutomaticChoice && threeViews && separateAutoButtons && autoSubsetApplied ? "pass" : "fail";
 </script>
