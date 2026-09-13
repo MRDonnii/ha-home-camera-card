@@ -31,5 +31,9 @@
     "binary_sensor.example_3_person_detected": { state: "on", last_changed: "2026-09-13T15:01:00Z" },
   } };
   const autoSubsetApplied = card._automaticCamera(card.config.groups[0])?.key === "camera_2";
-  document.title = popupHasAllCameras && popupHasAllStars && popupHasAutoPerCamera && hasAutomaticChoice && threeViews && separateAutoButtons && autoSubsetApplied ? "pass" : "fail";
+  card._manual[0] = "camera_1";
+  card._openPicker(0, card.shadowRoot.querySelector('[data-choose="0"]'));
+  card.shadowRoot.querySelector('[data-auto-pin="camera_1"]').click();
+  const toggleReturnsToAuto = card._manual[0] === "__auto__";
+  document.title = popupHasAllCameras && popupHasAllStars && popupHasAutoPerCamera && hasAutomaticChoice && threeViews && separateAutoButtons && autoSubsetApplied && toggleReturnsToAuto ? "pass" : "fail";
 </script>

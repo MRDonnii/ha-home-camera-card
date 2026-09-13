@@ -54,6 +54,8 @@ favorit/fallback, når aktiviteten udløber. Den kompakte dropdown kan altid
 skifte mellem auto og et statisk kamera; stjernen vælger favoritkameraet.
 En separat **Auto**-knap ud for hvert kamera bestemmer, om automatikken må
 skifte til netop det kamera, uden at fjerne kameraet fra de manuelle valg.
+Et tryk skifter samtidig vinduet tilbage til automatisk drift, så ændringen kan
+ses med det samme.
 Den eksterne valgsensor er fortsat valgfri af hensyn til ældre opsætninger.
 Ældre konfigurationer med en kameraliste inde i hver gruppe migreres automatisk
 af editoren.
